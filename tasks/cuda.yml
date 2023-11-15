@@ -1,0 +1,190 @@
+---
+## Preliminary work
+
+# Set facts for the CUDA versioning. NVIDIA uses three different formats for CUDA versioning
+# depending on what is being worked on. For example, CUDA 11.8 can be referred to by
+# "11.8.0" -> in the download URL
+# "11-8" -> package name
+# "11.8" -> filesystem path
+# Instead of entering all three, take the base semantic version and transform it
+
+- name: Set CUDA version fact
+  ansible.builtin.set_fact:
+    cuda_version_components: "{{ cuda_semantic_version.split('.') }}"
+
+- name: Set CUDA version variables
+  ansible.builtin.set_fact:
+    cuda_version: "{{ cuda_version_components[0] + '-' + cuda_version_components[1] }}"
+    cuda_path_version: "{{ cuda_version_components[0] + '.' + cuda_version_components[1] }}"
+
+# Install APT packages we need
+- name: Install base OS APT packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    autoremove: true
+  loop: "{{ base_apt_packages }}"
+  become: true
+
+# Upgrade pip
+- name: Upgrade to latest pip build
+  ansible.builtin.pip:
+    name: pip
+    extra_args: --upgrade
+
+# Install virtualenv python module
+- name: Install Python virtualenv
+  ansible.builtin.pip:
+    name: virtualenv
+
+## CUDA Installation tasks
+# Download the CUDA APT repository pin file
+- name: Download CUDA APT repository pin file (Internet)
+  ansible.builtin.get_url:
+    url: "{{ nvidia_url }}/cuda/repos/{{ cuda_distro }}/{{ cuda_arch }}/cuda-{{ cuda_distro }}.pin"
+    dest: /etc/apt/preferences.d/cuda-repository-pin-600
+    mode: '0644'
+  when: not use_local_sources
+
+# Download the CUDA APT repository pin file
+- name: Download CUDA APT repository pin file (local URL)
+  ansible.builtin.get_url:
+    url: "{{ local_cuda_pin_url }}"
+    dest: /etc/apt/preferences.d/cuda-repository-pin-600
+    mode: '0644'
+  when: use_local_sources
+
+# Download the local CUDA installer package
+- name: Download CUDA Ubuntu package (Internet)
+  ansible.builtin.get_url:
+    url: "{{ nvidia_url }}/cuda/{{ cuda_semantic_version }}/local_installers/\
+      cuda-repo-{{ cuda_distro }}-{{ cuda_version }}-local_{{ cuda_semantic_version }}-{{ cuda_package_version }}-1_amd64.deb"
+    dest: "/tmp/cuda-repo-{{ cuda_distro }}-{{ cuda_version }}-local_{{ cuda_semantic_version }}-{{ cuda_package_version }}-1_amd64.deb"
+    mode: '0644'
+  when: not use_local_sources
+
+- name: Download CUDA Ubuntu package (local URL)
+  ansible.builtin.get_url:
+    url: "{{ local_cuda_package_url }}"
+    dest: "/tmp/cuda-repo-{{ cuda_distro }}-{{ cuda_version }}-local_{{ cuda_semantic_version }}-{{ cuda_package_version }}-1_amd64.deb"
+    mode: '0644'
+  when: use_local_sources
+
+- name: Install CUDA Ubuntu package
+  ansible.builtin.apt:
+    deb: "/tmp/cuda-repo-{{ cuda_distro }}-{{ cuda_version }}-local_{{ cuda_semantic_version }}-{{ cuda_package_version }}-1_amd64.deb"
+
+# Check to see if the keyring already is in the right place
+- name: Check for CUDA keyring
+  ansible.builtin.find:
+    path: /usr/share/keyrings/
+    patterns:
+      - 'cuda-.*-keyring\.gpg'
+    use_regex: true
+  register: find_result
+
+# Move the key if it is not already in place
+- name: Move CUDA signing APT signing key
+  ansible.builtin.shell: |
+    cp /var/cuda-repo-ubuntu2204-11-8-local/cuda-*-keyring.gpg /usr/share/keyrings/
+  when: "find_result.matched == 0"
+  changed_when: true
+
+# Install CUDA APT package(s)
+- name: Install CUDA APT packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    autoremove: true
+    update_cache: true
+  loop: "{{ cuda_apt_packages }}"
+  become: true
+
+# Install cuDNN APT package(s)
+- name: Install cuDNN APT packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    autoremove: true
+    update_cache: true
+  loop: "{{ cudnn_apt_packages }}"
+  become: true
+
+# Add cuDNN paths to user profile
+- name: Add cuDNN paths to user profile
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env.HOME }}/.profile"
+    content: |
+      if [ -d "/usr/local/cuda-{{ cuda_path_version }}/bin/" ]; then
+          export PATH=/usr/local/cuda-{{ cuda_path_version }}/bin${PATH:+:${PATH}}
+          export LD_LIBRARY_PATH=/usr/local/cuda-{{ cuda_path_version }}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+      fi
+
+# Download the local TensorRT installer package
+- name: Download CUDA Ubuntu package (Internet)
+  ansible.builtin.get_url:
+    url: "{{ tensorrt_url_prefix }}/{{ tensorrt_version }}/local_repos/\
+      nv-tensorrt-local-repo-{{ cuda_distro }}-{{ tensorrt_version }}-cuda-{{ cuda_path_version }}_1.0-1_amd64.deb"
+    dest: "/tmp/nv-tensorrt-local-repo-{{ cuda_distro }}-{{ tensorrt_version }}-cuda-{{ cuda_path_version }}_1.0-1_amd64.deb"
+    mode: '0644'
+  when: (install_tensorrt) and (not use_local_sources)
+
+- name: Download CUDA Ubuntu package (local URL)
+  ansible.builtin.get_url:
+    url: "{{ local_tensorrt_package_url }}"
+    dest: "/tmp/nv-tensorrt-local-repo-{{ cuda_distro }}-{{ tensorrt_version }}-cuda-{{ cuda_path_version }}_1.0-1_amd64.deb"
+    mode: '0644'
+  when: (install_tensorrt) and (use_local_sources)
+
+- name: Install TensorRT Ubuntu package
+  ansible.builtin.apt:
+    deb: "/tmp/nv-tensorrt-local-repo-{{ cuda_distro }}-{{ tensorrt_version }}-cuda-{{ cuda_path_version }}_1.0-1_amd64.deb"
+  when: install_tensorrt
+
+# Check to see if the keyring already is in the right place
+- name: Check for TensorRT keyring
+  ansible.builtin.find:
+    path: /usr/share/keyrings/
+    patterns:
+      - 'nv-tensorrt-local-repo-.*-keyring\.gpg'
+    use_regex: true
+  register: tensorrt_key_result
+
+# Move the key if it is not already in place
+- name: Move TensorRT signing APT signing key
+  ansible.builtin.shell: |
+    cp /var/nv-tensorrt-local-repo-*/nv-tensorrt-local-*-keyring.gpg /usr/share/keyrings/
+  when: "tensorrt_key_result.matched == 0"
+  changed_when: true
+
+# Install TensorRT APT package(s)
+- name: Install TensorRT APT packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    autoremove: true
+    update_cache: true
+  loop: "{{ tensorrt_apt_packages }}"
+  become: true
+
+## Tensorflow
+
+# Create the folder structure for the Tensorflow Python virtual environment
+- name: Create Tensorflow Python virtual environment director
+  ansible.builtin.file:
+    state: directory
+    path: "{{ tensorflow_venv_folder }}"
+    mode: '0644'
+
+# Install the Tensorflow and CUDA packages together
+- name: Install Tensorflow Python package
+  ansible.builtin.pip:
+    virtualenv: "{{ tensorflow_venv_folder }}"
+    virtualenv_python: "{{ venv_python_version }}"
+    name: "{{ item }}"
+  loop: "{{ tensorflow_python_modules }}"
+
+## Restart hosts
+- name: Restart hosts to complete install (if enabled)
+  ansible.builtin.reboot:
+  when: reboot_systems

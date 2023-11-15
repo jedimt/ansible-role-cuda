@@ -1,0 +1,40 @@
+---
+# ansible_version is returned from the local Ansible controller
+- name: Check that Ansible v{{ ansible_version.string }} is supported by this role # noqa name
+  ansible.builtin.assert:
+    that:
+      - ansible_version.string is version_compare(precheck_ansible_min_version, '>=')
+    fail_msg: >-
+      Ansible v{{ ansible_version.string }} is not supported by this role.
+      Please install >= v{{ precheck_ansible_min_version }}.
+    success_msg: "Ansible v{{ ansible_version.string }} is supported."
+  become: false
+  delegate_to: localhost
+  run_once: true
+  when:
+    - not skip_validation
+
+# Check the python version running on the systems to configure
+- name: Check that Python v{{ ansible_python_version }} is supported by this role # noqa name
+  ansible.builtin.assert:
+    that:
+      - ansible_python_version is version_compare(precheck_python_min_version, '>=')
+    fail_msg: >-
+      Python v{{ ansible_python_version }} is not supported by this role.
+      Please install >= v{{ precheck_python_min_version }} on the target system.
+    success_msg: "Python v{{ ansible_python_version }} is supported."
+  become: false
+  when:
+    - not skip_validation
+
+# Validate we are running on Ubuntu 22.04 or later
+- name: Check that Ubuntu is version 22.04 or later
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+      - ansible_distribution_version is version_compare(precheck_ubuntu_min_version, '>=')
+    fail_msg: >-
+      This role currently only supports Ubuntu 22
+  become: false
+  when:
+    - not skip_validation

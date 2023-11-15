@@ -1,0 +1,8 @@
+---
+# tasks file for ansible-role-cuda
+- name: Run pre-checks
+  ansible.builtin.import_tasks: precheck.yml
+
+# Download and install HuggingBench tool
+- name: Install prerequisites packages
+  ansible.builtin.import_tasks: cuda.yml

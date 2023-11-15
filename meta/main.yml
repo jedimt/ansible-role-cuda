@@ -1,0 +1,24 @@
+galaxy_info:
+  author: jedimt
+  role_name: cuda
+  description: Install NVIDIA CUDA, cuDNN, TensorRT (optionally) and TensorFlow.
+
+  license: MIT
+
+  min_ansible_version: "7"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+
+  galaxy_tags:
+    - linux
+    - nvidia
+    - ai
+    - cuda
+    - cudnn
+    - tensorrt
+    - tensorflow
+
+dependencies: []
