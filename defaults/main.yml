@@ -28,13 +28,6 @@ nvidia_url: "https://developer.download.nvidia.com/compute"
 # Semantic version string used in some URLs
 cuda_semantic_version: "11.8.0"
 
-# The cuda_version and cuda_path_version are built dynamically
-# # Short cuda version used in packages
-# cuda_version: "11-8"
-
-# # used in user profile
-# cuda_path_version: "11.8"
-
 # CUDA installer package version
 cuda_package_version: "520.61.05"
 
