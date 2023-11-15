@@ -8,6 +8,11 @@ Requirements
 
 Ubuntu 22.04 and Python 3.10.
 
+Dependancies
+------------
+
+The jedimt.nvidia_repo role must be installed and run on the hosts to enable downloading packages for cudnn.
+
 Role Variables
 --------------
 
@@ -99,6 +104,7 @@ Example Playbook
         - "../../credentials.yml"
 
       roles:
+        - { role: jedimt.nvidia_container_toolkit }
         - { role: jedimt.cuda,
             skip_validation: true,
             use_local_sources: true,
@@ -109,8 +115,9 @@ Example Playbook
             cudnn_cuda_version: "cuda11.8",
             tensorrt_version: "8.6.1",
             venv_python_version: "3.10",
-            tensorflow_python_modules: "tensorflow[and-cuda]==2.13.0"
+            tensorflow_python_modules: ["tensorflow[and-cuda]==2.13.0"]
         }
+
 
 License
 -------

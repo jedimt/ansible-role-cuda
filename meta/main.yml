@@ -21,4 +21,5 @@ galaxy_info:
     - tensorrt
     - tensorflow
 
-dependencies: []
+dependencies:
+  - role: jedimt.nvidia_repo
