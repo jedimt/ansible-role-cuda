@@ -86,7 +86,7 @@
 # Move the key if it is not already in place
 - name: Move CUDA signing APT signing key
   ansible.builtin.shell: |
-    cp /var/cuda-repo-ubuntu2204-11-8-local/cuda-*-keyring.gpg /usr/share/keyrings/
+    cp /var/cuda-repo-ubuntu2204-*-local/cuda-*-keyring.gpg /usr/share/keyrings/
   when: "find_result.matched == 0"
   changed_when: true
 
@@ -149,13 +149,17 @@
       - 'nv-tensorrt-local-repo-.*-keyring\.gpg'
     use_regex: true
   register: tensorrt_key_result
+  when: install_tensorrt
 
 # Move the key if it is not already in place
 - name: Move TensorRT signing APT signing key
   ansible.builtin.shell: |
     cp /var/nv-tensorrt-local-repo-*/nv-tensorrt-local-*-keyring.gpg /usr/share/keyrings/
-  when: "tensorrt_key_result.matched == 0"
+  when:
+    - install_tensorrt
+    - "tensorrt_key_result.matched == 0"
   changed_when: true
+
 
 # Install TensorRT APT package(s)
 - name: Install TensorRT APT packages
@@ -166,6 +170,7 @@
     update_cache: true
   loop: "{{ tensorrt_apt_packages }}"
   become: true
+  when: install_tensorrt
 
 ## Tensorflow
 
@@ -175,6 +180,7 @@
     state: directory
     path: "{{ tensorflow_venv_folder }}"
     mode: '0644'
+  when: install_tensorflow
 
 # Install the Tensorflow and CUDA packages together
 - name: Install Tensorflow Python package
@@ -183,6 +189,7 @@
     virtualenv_python: "{{ venv_python_version }}"
     name: "{{ item }}"
   loop: "{{ tensorflow_python_modules }}"
+  when: install_tensorflow
 
 ## Restart hosts
 - name: Restart hosts to complete install (if enabled)

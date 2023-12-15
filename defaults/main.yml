@@ -40,6 +40,8 @@ cuda_apt_packages:
   - cuda-{{ cuda_version }}
 
 ## cuDNN variables
+# cuDNN support matrix:
+# https://docs.nvidia.com/deeplearning/cudnn/support-matrix/index.html
 cudnn_version: "8.9.6.50"
 cudnn_cuda_version: "cuda11.8"
 
@@ -63,6 +65,11 @@ tensorrt_apt_packages:
   - tensorrt
 
 ## Tensorflow
+# Version matrix here: https://www.tensorflow.org/install/source#gpu
+
+# Install tensorflow
+install_tensorflow: true
+
 # Python modules to install
 tensorflow_python_modules:
   - tensorflow[and-cuda]==2.13.0
